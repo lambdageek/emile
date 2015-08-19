@@ -1,0 +1,28 @@
+name:                emile
+version:             0.1
+synopsis:            Extensible ML for Interesting Experiments
+description:         Extensible ML for Interesting Experiments
+homepage:            https://github.com/lambdageek/emile
+license:             BSD2
+license-file:        LICENSE
+author:              Aleksey Kliger
+maintainer:          aleksey at lambdageek dot org
+category:            Language
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  -- exposed-modules:     
+  -- other-modules:       
+  -- other-extensions:    
+  build-depends:       base >=4.7 && <4.9,
+                       unbound-generics >= 0.2,
+                       mtl >= 2.2.0.1
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+source-repository head
+  type: git
+  location: git://github.com/lambdageek/emile.git
+
