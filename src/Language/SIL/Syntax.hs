@@ -3,13 +3,10 @@ module Language.SIL.Syntax where
 
 import Names
 
+import Language.CoreLang
+
 -- Core SIL
-
-class CoreLang (lang :: k) where
-  data CoreKind lang :: *
-  data CoreType lang :: *
-  data CoreExpr lang :: *
-
+class CoreLang lang => CoreSIL lang where
   -- data CoreExpr = ... | ProjExpr Mod | ...
   injProjModExpr  :: (Mod lang)    -> CoreExpr lang
   projProjModExpr :: CoreExpr lang -> Maybe (Mod lang)

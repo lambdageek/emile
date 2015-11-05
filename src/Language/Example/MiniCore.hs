@@ -3,7 +3,8 @@ module Language.Example.MiniCore where
 
 import Names
 
-import Language.SIL.Syntax (CoreLang(..), Mod)
+import Language.CoreLang
+import Language.SIL.Syntax (CoreSIL(..), Mod)
 
 data Mini = MiniSIL
 
@@ -22,6 +23,7 @@ instance CoreLang MiniSIL where
     | ProjModE (Mod MiniSIL)
     deriving (Show, Generic)
 
+instance CoreSIL MiniSIL where
   injProjModExpr = ProjModE
   projProjModExpr (ProjModE mod) = Just mod
   projProjModExpr _ = Nothing
