@@ -23,6 +23,8 @@ instance CoreLang MiniSIL where
     | ProjModE (Mod MiniSIL)
     deriving (Show, Generic)
 
+  injTyVar = VarT
+
 instance CoreSIL MiniSIL where
   injProjModExpr = ProjModE
   projProjModExpr (ProjModE mod) = Just mod
