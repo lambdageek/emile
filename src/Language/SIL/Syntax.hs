@@ -7,7 +7,13 @@ import Names
 
 import Language.CoreLang
 
--- Core SIL
+-- | Core SIL
+--
+-- The SIL language of abstract signatures and structures is just a
+-- convenient syntactic sugar for certain expressions of a language
+-- that is at least as powerful as System F (for the generative
+-- fragment, or System Fω with applicative functors).  This is the
+-- class that witnesses that embedding.
 class CoreLang lang => CoreSIL lang where
   -- data CoreExpr = ... | ProjExpr Mod | ...
   injProjModExpr  :: (Mod lang)    -> CoreExpr lang

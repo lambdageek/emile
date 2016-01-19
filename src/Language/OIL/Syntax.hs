@@ -9,50 +9,80 @@ type MId lang = Name (MExpr lang)
 newtype Field = Field { fieldName :: String }
                 deriving (Show, Generic)
 
+-- module expressions
 data MExpr (lang :: k) where
+  -- module identifier
   IdME :: MId lang -> MExpr lang
+  -- module projection
   ProjME :: MExpr lang -> Field -> MExpr lang
+  -- (generative) functor construction
   FunME :: Bind (MId lang, Embed (MTyp lang)) (MExpr lang) -> MExpr lang
+  -- (generative) functor application
   AppME :: MId lang -> MId lang -> MExpr lang
+  -- sealing
   SealME :: MId lang -> MTyp lang -> MExpr lang
+  -- literal module
   LitME :: Embed (MBinds lang) -> MExpr lang
 
+-- module types (aka signatures)
 data MTyp (lang :: k) where
+  -- path projection.  All expressions are syntactically valid as
+  -- paths, but the path typing judgment will rule out non-projectable
+  -- ones.
   PathMT :: MExpr lang -> MTyp lang
+  -- (generative) functor signatures
   FunMT :: Bind (MId lang, Embed (MTyp lang)) (MTyp lang) -> MTyp lang
+  -- signature patching with a "where" clause
   PatchMT :: MTyp lang -> MWhere lang -> MTyp lang
+  -- literal module signature
   LitMT :: Embed (MDecls lang) -> MTyp lang
 
+-- where clauses
 data MWhere (lang :: k) =
   MWhere [Field] (CoreType  lang)
   deriving (Show, Generic)
 
--- pattern
+-- module bindings
+-- (Unbound pattern)
 data MBinds (lang :: k) where
-  AtomicMB :: Embed Field -> MId lang -> Embed (AtomicBinding lang) -> MBinds lang
+  -- atomic binding of a single field.
+  AtomicMB :: Provide (Embed Field, MId lang) (AtomicBinding lang) -> MBinds lang
+  -- inclusion of another module expression
   IncludeMB :: Provide [(Embed Field, MId lang)] (MExpr lang) -> MBinds lang
+  -- the empty module
   NilMB :: MBinds lang
+  -- binding sequencing
   SeqMB :: Rebind (MBinds lang) (MBinds lang) -> MBinds lang
 
+-- atomic binding
+-- (Unbound term)
 data AtomicBinding (lang :: k) where
   ValAB :: CoreExpr lang -> AtomicBinding lang
   TypeAB :: CoreType lang -> AtomicBinding lang
   ModAB :: MExpr lang -> AtomicBinding lang
   SigAB :: MTyp lang -> AtomicBinding lang
 
--- pattern
+-- signature declarations
+-- (Unbound pattern)
 data MDecls (lang :: k) where
-  AtomicMD :: Embed Field -> MId lang -> Embed (AtomicDecl lang) -> MDecls lang
+  -- atomic delcaration of a single field.
+  AtomicMD :: Provide (Embed Field, MId lang) (AtomicDecl lang) -> MDecls lang
+  -- signature inclusion
   IncludeMD :: Provide [(Embed Field, MId lang)] (MTyp lang) -> MDecls lang
+  -- the empty signature
   NilMD :: MDecls lang
+  -- declaration sequencing
   SeqMD :: Rebind (MDecls lang) (MDecls lang) -> MDecls lang
 
+-- atomic declaration
+-- (Unbound term)
 data AtomicDecl (lang :: k) where
   ValMD :: CoreType lang -> AtomicDecl lang
   TypeMD :: Either (CoreKind lang) (CoreType lang) -> AtomicDecl lang
   ModMD :: MTyp lang -> AtomicDecl lang
   SigMD :: MTyp lang -> AtomicDecl lang
 
+-- convenience wrapper for bindings and declarations 
 data Provide p t = Provide p (Embed t) -- provide the names p
 
 type CoreShow lang = (Show (CoreType lang), Show (CoreExpr lang), Show (CoreKind lang))
