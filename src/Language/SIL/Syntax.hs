@@ -39,7 +39,7 @@ data Σ lang =
   -- | [=Ξ] single manifest signature definition. In SIL, modules may contain signature definitions.
   | SigΣ (Ξ lang)
   -- | {⋯ ℓ : Σ, ⋯} a module containing several named bindings.
-  | RecordΣ [(Label, (Σ lang))]
+  | RecordΣ (ModuleContent (Σ lang))
   -- | ∀αs.Σ₁ → Ξ a generative functor signature the functor takes
   -- several types and a module with concrete signature Σ₁ (which may
   -- mention αs) and reutrns a module Ξ=∃βs.Σ₂ where Σ₂ may mention αs
@@ -58,6 +58,8 @@ type TyVar lang = Name (CoreType lang)
 -- pattern
 type TyVarBinds lang = [(TyVar lang, Embed (CoreKind lang))]
 
+type ModuleContent element = [(Label, element)]
+
 -- | bound module identifier
 type IdM lang = Name (Mod lang)
 
@@ -72,7 +74,7 @@ data Mod lang =
   -- | [Ξ] a module containing a single signature definition Ξ
   | SigM (Ξ lang)
   -- | {⋯, ℓ = M, ⋯} a module containing several named bindings
-  | RecordM [(Label, (Mod lang))]
+  | RecordM (ModuleContent (Mod lang)) 
   -- | M.ℓ₁.ℓ₂… projection of a named field from a composite module
   | ProjM (Mod lang) [Label]
     -- | Λ αs:κs . λ X : Σ . pack ⟨τs, M⟩ as ∃βs:κ′s.Σ′  generative functor construction
@@ -163,9 +165,12 @@ unΞ :: (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang),
 unΞ (Ξ bnd) = do
   (ακs, σ) <- unbind bnd
   return (unembedMap ακs, σ)
-  where
-    unembedMap :: [(a, Embed b)] -> [(a, b)]
-    unembedMap = Data.Coerce.coerce
+
+unembedMap :: [(a, Embed b)] -> [(a, b)]
+unembedMap = Data.Coerce.coerce
+
+embedMap :: [(a, b)] -> [(a, Embed b)]
+embedMap = Data.Coerce.coerce
 
 unpackM :: (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang), Typeable (Mod lang),
             Alpha (CoreKind lang), Alpha (CoreType lang), Alpha (CoreExpr lang))

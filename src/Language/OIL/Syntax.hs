@@ -22,12 +22,12 @@ data MExpr (lang :: k) where
   -- sealing
   SealME :: MId lang -> MTyp lang -> MExpr lang
   -- literal module
-  LitME :: Embed (MBinds lang) -> MExpr lang
+  LitME :: Bind (MBinds lang) () -> MExpr lang
 
 -- module types (aka signatures)
 data MTyp (lang :: k) where
   -- path projection.  All expressions are syntactically valid as
-  -- paths, but the path typing judgment will rule out non-projectable
+  -- paths, but the path elaboration judgment will rule out non-projectable
   -- ones.
   PathMT :: MExpr lang -> MTyp lang
   -- (generative) functor signatures
@@ -35,7 +35,7 @@ data MTyp (lang :: k) where
   -- signature patching with a "where" clause
   PatchMT :: MTyp lang -> MWhere lang -> MTyp lang
   -- literal module signature
-  LitMT :: Embed (MDecls lang) -> MTyp lang
+  LitMT :: Bind (MDecls lang) () -> MTyp lang
 
 -- where clauses
 data MWhere (lang :: k) =
@@ -58,6 +58,7 @@ data MBinds (lang :: k) where
 -- (Unbound term)
 data AtomicBinding (lang :: k) where
   ValAB :: CoreExpr lang -> AtomicBinding lang
+  -- type X = T
   TypeAB :: CoreType lang -> AtomicBinding lang
   ModAB :: MExpr lang -> AtomicBinding lang
   SigAB :: MTyp lang -> AtomicBinding lang
@@ -65,7 +66,7 @@ data AtomicBinding (lang :: k) where
 -- signature declarations
 -- (Unbound pattern)
 data MDecls (lang :: k) where
-  -- atomic delcaration of a single field.
+  -- atomic delcaration of a single field X
   AtomicMD :: Provide (Embed Field, MId lang) (AtomicDecl lang) -> MDecls lang
   -- signature inclusion
   IncludeMD :: Provide [(Embed Field, MId lang)] (MTyp lang) -> MDecls lang
@@ -74,12 +75,16 @@ data MDecls (lang :: k) where
   -- declaration sequencing
   SeqMD :: Rebind (MDecls lang) (MDecls lang) -> MDecls lang
 
--- atomic declaration
+-- | atomic declaration
 -- (Unbound term)
 data AtomicDecl (lang :: k) where
+  -- | val X : T
   ValMD :: CoreType lang -> AtomicDecl lang
+  -- | type X : K     or     type X = T
   TypeMD :: Either (CoreKind lang) (CoreType lang) -> AtomicDecl lang
+  -- | module X : S
   ModMD :: MTyp lang -> AtomicDecl lang
+  -- | signature X = S
   SigMD :: MTyp lang -> AtomicDecl lang
 
 -- convenience wrapper for bindings and declarations 
