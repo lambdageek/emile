@@ -7,29 +7,46 @@ import Names
 
 import Language.CoreLang
 
--- | Core SIL
+class (CoreLang lang, Monad m) => MapNameMonad m lang where
+  lookupIdM :: IdM lang -> m (Name (CoreExpr lang))
+  extendIdM :: IdM lang -> (Name (CoreExpr lang) -> m a) -> m a
+
+-- | Desugar SIL
 --
 -- The SIL language of abstract signatures and structures is just a
 -- convenient syntactic sugar for certain expressions of a language
 -- that is at least as powerful as System F (for the generative
 -- fragment, or System Fω with applicative functors).  This is the
--- class that witnesses that embedding.
-class CoreLang lang => CoreSIL lang where
-  -- data CoreExpr = ... | ProjExpr Mod | ...
-  injProjModExpr  :: (Mod lang)    -> CoreExpr lang
-  projProjModExpr :: CoreExpr lang -> Maybe (Mod lang)
+-- class that witnesses that desugaring.
+class CoreLang lang => DesugarSIL lang where
+  desugarMod  :: (MapNameMonad m lang, Fresh m) => Mod lang -> m (CoreExpr lang)
 
 
 newtype Label = Label String
               deriving (Show, Eq, Ord, Generic)
 
+-- | Concrete semantic signatures
+--
+-- Σ Each SIL module may be ascribed a semantic signature of the form
+-- Ξ ≙ ∃αs.Σ where Σ is a concrete semantic signature.
 data Σ lang =
+  -- | [τ] concrete signature for a module containing a single value expression
   ValΣ (CoreType lang)
+  -- | [=τ:κ] concrete signature for a module containing a single type definition.
+  -- in the case of sealed modules where an abstract type is hidden this will be
+  -- a type variable bound in an outer scope.  For manifest types it will be some type expression.
   | TyΣ (CoreType lang) (CoreKind lang)
+  -- | [=Ξ] single manifest signature definition. In SIL, modules may contain signature definitions.
   | SigΣ (Ξ lang)
+  -- | {⋯ ℓ : Σ, ⋯} a module containing several named bindings.
   | RecordΣ [(Label, (Σ lang))]
+  -- | ∀αs.Σ₁ → Ξ a generative functor signature the functor takes
+  -- several types and a module with concrete signature Σ₁ (which may
+  -- mention αs) and reutrns a module Ξ=∃βs.Σ₂ where Σ₂ may mention αs
+  -- and βs.  Thus each application of the functor produces new
+  -- distinct abstract types βs while allowing the result to depend on
+  -- the abstract types of the argument Σ₁.
   | FunΣ (Bind (TyVarBinds lang) (Σ lang, Ξ lang))
-    -- no elim form for SigM, we can just read off the sig!
     deriving (Show, Generic)
 
 newtype Ξ lang =
@@ -41,29 +58,37 @@ type TyVar lang = Name (CoreType lang)
 -- pattern
 type TyVarBinds lang = [(TyVar lang, Embed (CoreKind lang))]
 
+-- | bound module identifier
 type IdM lang = Name (Mod lang)
 
+-- | Semantic module expressions
 data Mod lang =
-  -- X
+  -- | X module identifier
   VarM (IdM lang)
-  -- [e]
+  -- | [e] a module containing a single expression
   | ValM (CoreExpr lang)
-  -- [τ:κ]
+  -- | [τ:κ] a module containing a single type definition τ
   | TyM (CoreType lang) (CoreKind lang)
-  -- [Ξ]
+  -- | [Ξ] a module containing a single signature definition Ξ
   | SigM (Ξ lang)
-  -- {⋯, ℓ = M, ⋯}
+  -- | {⋯, ℓ = M, ⋯} a module containing several named bindings
   | RecordM [(Label, (Mod lang))]
-  -- M.ℓ₁.ℓ₂…
+  -- | M.ℓ₁.ℓ₂… projection of a named field from a composite module
   | ProjM (Mod lang) [Label]
-    -- ∀ αs:κs . λ X : Σ . pack ⟨τs, M⟩ as ∃βs:κ′s.Σ′
+    -- | Λ αs:κs . λ X : Σ . pack ⟨τs, M⟩ as ∃βs:κ′s.Σ′  generative functor construction
   | LamM (Bind (Rebind (TyVarBinds lang) ((IdM lang), Embed (Σ lang))) (PackMod lang))
+    -- | F [τs] M functor application
   | AppM (Mod lang) [CoreType lang] (Mod lang)
-    -- unpack ⟨αs, X⟩ = M in M'
+    -- | unpack ⟨αs, X⟩ = M in M' abstract module unpacking
   | UnpackM (Bind ([TyVar lang], IdM lang, Embed (Mod lang)) (Mod lang))
-    -- pack ⟨τs, M'⟩ as ∃βs:κ's.Σ'
+    -- | pack ⟨τs, M'⟩ as Ξ sealing at an abstract signature
   | PackM (PackMod lang)
-    -- f M
+    -- | ¢@M module subsignature coercion - ¢ is a witness for the
+    -- subsignature judgment αs ⊢ Σ ≤ Ξ ⇝ ¢ (these could all be
+    -- expressed in terms of packing unpacking record construction and
+    -- projection etc, but they tend to produce a lot of boring
+    -- administrative redices, so it's better to keep them somewhat
+    -- abstract and delay desugaring)
   | CoerM (SubsigCoercion lang) (Mod lang)
   deriving (Show, Generic)
 
