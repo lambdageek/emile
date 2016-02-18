@@ -1,11 +1,16 @@
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving,
-  DataKinds, TypeFamilies, PatternSynonyms, PolyKinds, EmptyDataDecls
+  DataKinds, TypeFamilies, PatternSynonyms, PolyKinds, EmptyDataDecls,
+  ViewPatterns
   #-}
 module Language.Example.MiniCore where
 
 import Control.Applicative (Applicative(..), (<$>))
 import Control.Monad (when)
 import Data.Traversable
+import Control.Monad.Error.Class
+import Control.Monad.Reader.Class
+import Data.Foldable (for_)
+import qualified Data.Map as M
 
 import Names
 
@@ -23,7 +28,7 @@ instance CoreLang MiniSIL where
   data CoreKind MiniSIL =
     TypeK
     | ArrK Kind Kind -- κ₁ → κ₂
-    deriving (Show, Generic)
+    deriving (Show, Generic, Eq)
   data CoreType MiniSIL =
     VarT TyVar
     | ArrT Type Type
@@ -232,3 +237,124 @@ instance Subst (CoreType MiniSIL) (CoreKind MiniSIL)
 instance Subst (CoreType MiniSIL) (CoreType MiniSIL) where
   isvar (VarT v) = Just (SubstName v)
   isvar _ = Nothing
+
+data CoreErr =
+  ExpectedFnExpr Expr
+  | ExpectedFnType Type
+  | ExpectedEquivTypes Type Type
+  | ExpectedEquivKinds Kind Kind
+  | ExpectedTypeK
+  | UnboundVar Var
+  | UnboundTyVar TyVar
+  deriving Show
+
+data CoreCtx = CoreCtx { coreCtxV :: M.Map Var Type
+                       , coreCtxTV :: M.Map TyVar Kind
+                       }
+
+raiseExpectedFn :: MonadError CoreErr m => Expr -> m a
+raiseExpectedFn = throwError . ExpectedFnExpr
+
+raiseExpectedFnKind :: MonadError CoreErr m => Type -> m a
+raiseExpectedFnKind = throwError . ExpectedFnType
+
+raiseExpectedEqTy :: MonadError CoreErr m => Type -> Type -> m a
+raiseExpectedEqTy τ = throwError . ExpectedEquivTypes τ
+
+raiseExpectedEqK :: MonadError CoreErr m => Kind -> Kind -> m a
+raiseExpectedEqK κ = throwError . ExpectedEquivKinds κ
+
+raiseExpectedTypeK :: MonadError CoreErr m => m a
+raiseExpectedTypeK = throwError ExpectedTypeK
+
+raiseUnboundVar :: MonadError CoreErr m => Var -> m a
+raiseUnboundVar = throwError . UnboundVar
+
+raiseUnboundTyVar :: MonadError CoreErr m => TyVar -> m a
+raiseUnboundTyVar = throwError . UnboundTyVar
+
+lookupVar x = do
+  mt <- asks (M.lookup x . coreCtxV)
+  case mt of
+    Just τ -> return τ
+    Nothing -> raiseUnboundVar x
+
+lookupTyVar α = do
+  mk <- asks (M.lookup α . coreCtxTV)
+  case mk of
+    Just κ -> return κ
+    Nothing -> raiseUnboundTyVar α
+
+coreNilCtx :: CoreCtx
+coreNilCtx = CoreCtx mempty mempty
+
+extendTyVarCtx α κ = local (\ c -> c { coreCtxTV = M.insert α κ (coreCtxTV c) } )
+extendVarCtx x τ = local (\ c -> c { coreCtxV = M.insert x τ (coreCtxV c) } )
+  
+
+ensureEquivTy τ σ _κ =
+  case (τ, σ) of
+    (VarT α, VarT β) | α == β -> return ()
+                     | otherwise -> raiseExpectedEqTy τ σ
+    _ -> error "unimplemented ensureEquivTy"
+
+ensureEquivKind κ₁ κ₂ | κ₁ == κ₂ = return ()
+                      | otherwise = raiseExpectedEqK κ₁ κ₂
+  
+whnfTy :: (Fresh m, MonadError CoreErr m, MonadReader CoreCtx m) => Type -> m Type
+whnfTy = return
+
+inferCoreType :: (Fresh m, MonadError CoreErr m, MonadReader CoreCtx m) => Expr -> m Type
+inferCoreType (VarE x) = lookupVar x
+inferCoreType (LamE bnd) = do
+  ((x, unembed -> τ), e) <- unbind bnd
+  τ' <- extendVarCtx x τ $ inferCoreType e
+  return $ τ `ArrT` τ'
+inferCoreType (AppE e₁ e₂) = do
+  τ_ <- inferCoreType e₁
+  τ <- whnfTy τ_
+  case τ of
+    ArrT τparam τres -> do
+      τarg <- inferCoreType e₂
+      ensureEquivTy τparam τarg TypeK
+      return τres
+    _ -> raiseExpectedFn e₁
+inferCoreType (TupleE elems) = do
+  lτs <- for elems $ \(lbl, e) -> do
+    τ <- inferCoreType e
+    return (lbl, τ)
+  return $ ProdT lτs
+inferCoreType _ = error "unimplemented inferCoreType"
+
+
+ensureTypeK :: (Fresh m, MonadError CoreErr m, MonadReader CoreCtx m) => Type -> m ()
+ensureTypeK τ = do
+  κ <- inferCoreKind τ
+  case κ of
+    TypeK -> return ()
+    _ -> raiseExpectedTypeK
+
+
+inferCoreKind :: (Fresh m, MonadError CoreErr m, MonadReader CoreCtx m) => Type -> m Kind
+inferCoreKind (VarT α) = lookupTyVar α
+inferCoreKind (ArrT τ₁ τ₂) = do
+  ensureTypeK τ₁
+  ensureTypeK τ₂
+  return TypeK
+inferCoreKind (ExistT bnd) = do
+  ((α, unembed -> κ), τ) <- unbind bnd
+  extendTyVarCtx α κ $ ensureTypeK τ
+  return TypeK
+inferCoreKind (AppT τ₁ τ₂) = do
+  κ <- inferCoreKind τ₁
+  case κ of
+    ArrK κ₁ κ₂ -> do
+      κ₁' <- inferCoreKind τ₂
+      ensureEquivKind κ₁ κ₁'
+      return κ₂
+    TypeK -> raiseExpectedFnKind τ₁
+inferCoreKind (ProdT lτs) = do
+  for_ lτs $ \(_lbl, τ) -> ensureTypeK τ
+  return TypeK
+inferCoreKind _ = error "unimplemented inferCoreKind"
+    

@@ -15,7 +15,8 @@ cabal-version:       >=1.10
 tested-with:         GHC == 8.0.1
 
 library
-  exposed-modules:     Language.CoreLang,
+  exposed-modules:     Language.Example.MiniMod,
+                       Language.CoreLang,
                        Language.OIL.Syntax,
                        Language.SIL.Syntax,
                        Language.SIL.Embed,
@@ -26,6 +27,7 @@ library
   build-depends:       base >=4.7 && <5
                      , containers >= 0.5
                      , mtl >= 2.2.0.1
+                     , transformers >= 0.4.0.0
                      , trifecta >= 1.5
                      , unbound-generics >= 0.2
   ghc-options:         -Wall -fno-warn-name-shadowing
@@ -36,4 +38,6 @@ library
 source-repository head
   type: git
   location: git://github.com/lambdageek/emile.git
+
+
 

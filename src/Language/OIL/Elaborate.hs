@@ -1,5 +1,7 @@
-{-# LANGUAGE PolyKinds, TypeFamilies #-}
-{-# LANGUAGE PatternGuards #-}
+{-# language PolyKinds, TypeFamilies, PatternGuards,
+             UndecidableInstances,
+             StandaloneDeriving
+  #-}
 module Language.OIL.Elaborate where
 
 import Names
@@ -31,11 +33,16 @@ data Err lang =
     -- Tried to project something that didn't turn out to be a signature
   | SigProjectionNotASig (MExpr lang)
 
+deriving instance (Show (CoreExpr lang), Show (CoreKind lang), Show (CoreType lang) ) => Show (Err lang)
+
 data Ctx lang = Ctx {
   ctxTyVars :: M.Map (TyVar lang) (CoreKind lang),
   ctxModMap :: M.Map (MId lang) (SIL.IdM lang, Σ lang)
   }
                    
+nilElabCtx :: Ctx lang
+nilElabCtx = Ctx mempty mempty
+
 elaborateMId :: MonadElab m lang => MId lang -> m (SIL.Mod lang, Σ lang)
 elaborateMId x = do
   mv <- asks (M.lookup x . ctxModMap)
