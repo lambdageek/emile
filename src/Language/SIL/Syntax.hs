@@ -1,4 +1,7 @@
-{-# LANGUAGE PolyKinds, TypeFamilies, GADTs, UndecidableInstances, ConstraintKinds #-}
+{-# language PolyKinds, TypeFamilies, GADTs,
+             UndecidableInstances, ConstraintKinds,
+             StandaloneDeriving
+  #-}
 module Language.SIL.Syntax where
 
 import qualified Data.Coerce
@@ -47,11 +50,11 @@ data Σ lang =
   -- distinct abstract types βs while allowing the result to depend on
   -- the abstract types of the argument Σ₁.
   | FunΣ (Bind (TyVarBinds lang) (Σ lang, Ξ lang))
-    deriving (Show, Generic)
+    deriving (Generic)
 
 newtype Ξ lang =
   Ξ (Bind (TyVarBinds lang) (Σ lang))
-  deriving (Show, Generic)
+  deriving (Generic)
 
 type TyVar lang = Name (CoreType lang)
 
@@ -92,18 +95,24 @@ data Mod lang =
     -- administrative redices, so it's better to keep them somewhat
     -- abstract and delay desugaring)
   | CoerM (SubsigCoercion lang) (Mod lang)
-  deriving (Show, Generic)
+  deriving (Generic)
 
 data SubsigCoercion lang =
   -- the identity coercion at Σ
   IdCo (Σ lang)
   -- TODO: more here
-  deriving (Show, Generic)
+  deriving (Generic)
 
 data PackMod lang =
   PackMod [CoreType lang] (Mod lang) (Ξ lang)
-  deriving (Show, Generic)
+  deriving (Generic)
 
+deriving instance (Show (CoreType lang), Show (CoreKind lang)) => Show (Σ lang)
+deriving instance (Show (CoreType lang), Show (CoreKind lang)) => Show (Ξ lang)
+deriving instance (Show (CoreType lang), Show (CoreKind lang)) => Show (SubsigCoercion lang)
+
+deriving instance (Show (CoreType lang), Show (CoreKind lang), Show (CoreExpr lang)) => Show (Mod lang)
+deriving instance (Show (CoreType lang), Show (CoreKind lang), Show (CoreExpr lang)) => Show (PackMod lang)
 
 instance Alpha Label
 instance (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang),
@@ -148,7 +157,7 @@ instance (CoreLang lang,
 instance Subst (CoreType lang) Label
 
 mkΞ :: (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang),
-        Alpha (CoreKind lang), Alpha (CoreType lang), Alpha (CoreExpr lang))
+        Alpha (CoreKind lang), Alpha (CoreType lang))
        => [(TyVar lang, CoreKind lang)]
        -> Σ lang
        -> Ξ lang
@@ -158,7 +167,7 @@ mkΞ ακs = Ξ . bind (embedMap ακs)
     embedMap = Data.Coerce.coerce
 
 unΞ :: (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang),
-        Alpha (CoreKind lang), Alpha (CoreType lang), Alpha (CoreExpr lang),
+        Alpha (CoreKind lang), Alpha (CoreType lang),
         Fresh m)
        => Ξ lang
        -> m ([(TyVar lang, CoreKind lang)], Σ lang)

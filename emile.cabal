@@ -12,7 +12,7 @@ build-type:          Simple
 extra-source-files:  README.md,
                      Changelog.md
 cabal-version:       >=1.10
-tested-with:         GHC == 7.10.2
+tested-with:         GHC == 8.0.1
 
 library
   exposed-modules:     Language.CoreLang,
@@ -23,7 +23,7 @@ library
                        Language.Example.MiniCore
   other-modules:       Names
   -- other-extensions:    
-  build-depends:       base >=4.7 && <4.9
+  build-depends:       base >=4.7 && <5
                      , containers >= 0.5
                      , mtl >= 2.2.0.1
                      , trifecta >= 1.5

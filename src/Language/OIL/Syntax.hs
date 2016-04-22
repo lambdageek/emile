@@ -1,5 +1,6 @@
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE GADTs, KindSignatures, PolyKinds, StandaloneDeriving, ConstraintKinds #-}
+{-# language StandaloneDeriving, UndecidableInstances,
+             GADTs, KindSignatures, PolyKinds, StandaloneDeriving, ConstraintKinds
+  #-}
 module Language.OIL.Syntax where
 
 import Names
@@ -40,7 +41,9 @@ data MTyp (lang :: k) where
 -- where clauses
 data MWhere (lang :: k) =
   MWhere [Field] (CoreType  lang)
-  deriving (Show, Generic)
+  deriving (Generic)
+
+deriving instance (Show (CoreType lang)) => Show (MWhere lang)
 
 -- module bindings
 -- (Unbound pattern)
