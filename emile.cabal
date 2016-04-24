@@ -16,12 +16,20 @@ tested-with:         GHC == 8.0.1
 
 library
   exposed-modules:     Language.Example.MiniMod,
+                       Language.Common.Label
                        Language.CoreLang,
                        Language.OIL.Syntax,
                        Language.SIL.Syntax,
                        Language.SIL.Embed,
                        Language.OIL.Elaborate,
-                       Language.Example.MiniCore
+                       Language.Example.MiniCore,
+                       Language.Example.MiniCore.Syntax,
+                       Language.Example.MiniCore.Errors,
+                       Language.Example.MiniCore.Context,
+                       Language.Example.MiniCore.Desugar,
+                       Language.Example.MiniCore.Whnf,
+                       Language.Example.MiniCore.EquivKind
+                       Language.Example.MiniCore.Equiv
   other-modules:       Names
   -- other-extensions:    
   build-depends:       base >=4.7 && <5
@@ -29,6 +37,7 @@ library
                      , mtl >= 2.2.0.1
                      , transformers >= 0.4.0.0
                      , trifecta >= 1.5
+                     , lens >= 4.0
                      , unbound-generics >= 0.2
   ghc-options:         -Wall -fno-warn-name-shadowing
   hs-source-dirs:      src

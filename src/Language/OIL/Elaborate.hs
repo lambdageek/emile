@@ -14,6 +14,7 @@ import qualified Data.Coerce
 import qualified Data.Map as M
 import qualified Data.List
 
+import Language.Common.Label
 import Language.CoreLang
 
 import Language.OIL.Syntax
@@ -29,7 +30,7 @@ class (MonadError (Err lang) m, MonadReader (Ctx lang) m, Fresh m) => MonadElab 
 data Err lang =
   NotFound (MId lang)
   | AppNotFunctor (MId lang)
-  | NoField SIL.Label
+  | NoField Label
     -- Tried to project something that didn't turn out to be a signature
   | SigProjectionNotASig (MExpr lang)
 
@@ -60,8 +61,8 @@ extendModMapContext xτs = local (updModMap (M.union m))
   where m = M.fromList xτs
         updModMap f ctx = ctx { ctxModMap = f (ctxModMap ctx) }
 
-translateField :: Field -> SIL.Label
-translateField = SIL.Label . fieldName
+translateField :: Field -> Label
+translateField = Label . fieldName
 
 translateMId :: MId lang -> SIL.IdM lang
 translateMId = Data.Coerce.coerce
@@ -263,7 +264,7 @@ signatureMatching :: Monad m
 signatureMatching _σ _ξ =
   return (error "unimplemented subsignatureMatching")
 
-getFieldΣ :: MonadElab m lang => Σ lang -> SIL.Label -> m (Σ lang)
+getFieldΣ :: MonadElab m lang => Σ lang -> Label -> m (Σ lang)
 getFieldΣ σ l = case σ of
   RecordΣ ls | (Just σ') <- Data.List.lookup l ls -> return σ'
   _ -> throwError (NoField l)

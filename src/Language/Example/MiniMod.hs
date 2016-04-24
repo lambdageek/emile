@@ -3,6 +3,7 @@ module Language.Example.MiniMod (
   module Language.OIL.Syntax
   , module Language.Example.MiniCore
   , module Language.Example.MiniMod
+  , s2n
   ) where
 
 import Control.Monad.Trans.Class
@@ -19,16 +20,25 @@ import Language.OIL.Syntax
 import Language.OIL.Elaborate
 
 import Language.Example.MiniCore
+import Language.Example.MiniCore.Syntax
+import Language.Example.MiniCore.Errors
+import Language.Example.MiniCore.Context
 
-newtype M a = M { unM :: ReaderT (Ctx MiniSIL) (ExceptT (Err MiniSIL) (ExceptT CoreErr (ReaderT CoreCtx FreshM))) a }
+
+type MiniM = ExceptT CoreErr (ReaderT CoreCtx FreshM)
+
+newtype M a = M { unM :: ReaderT (Ctx MiniSIL) (ExceptT (Err MiniSIL) MiniM) a }
   deriving (Functor, Monad, Applicative, MonadReader (Ctx MiniSIL), MonadError (Err MiniSIL), Fresh)
 
 instance MonadElab M MiniSIL where
-  inferTy = M . lift . lift . inferCoreType
-  inferKind = M . lift . lift . inferCoreKind
+  inferTy = liftMini . inferCoreType
+  inferKind = liftMini . inferCoreKind
 
 type BigErr = Either CoreErr (Err MiniSIL)
 
+liftMini :: MiniM a -> M a
+liftMini = M . lift . lift
+            
 runM :: M a -> Either BigErr a
 runM (M comp) = reassoc (runFreshM (runReaderT (runExceptT $ runExceptT (runReaderT comp emptyBigCtx)) emptySmallCtx))
   where

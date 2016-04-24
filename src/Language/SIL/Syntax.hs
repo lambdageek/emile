@@ -8,6 +8,7 @@ import qualified Data.Coerce
 
 import Names
 
+import Language.Common.Label
 import Language.CoreLang
 
 class (CoreLang lang, Monad m) => MapNameMonad m lang where
@@ -24,9 +25,6 @@ class (CoreLang lang, Monad m) => MapNameMonad m lang where
 class CoreLang lang => DesugarSIL lang where
   desugarMod  :: (MapNameMonad m lang, Fresh m) => Mod lang -> m (CoreExpr lang)
 
-
-newtype Label = Label String
-              deriving (Show, Eq, Ord, Generic)
 
 -- | Concrete semantic signatures
 --
@@ -114,7 +112,6 @@ deriving instance (Show (CoreType lang), Show (CoreKind lang)) => Show (SubsigCo
 deriving instance (Show (CoreType lang), Show (CoreKind lang), Show (CoreExpr lang)) => Show (Mod lang)
 deriving instance (Show (CoreType lang), Show (CoreKind lang), Show (CoreExpr lang)) => Show (PackMod lang)
 
-instance Alpha Label
 instance (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang),
           Alpha (CoreKind lang), Alpha (CoreType lang))
          => Alpha (Σ lang)
@@ -153,8 +150,6 @@ instance (CoreLang lang,
           Typeable (CoreKind lang), Typeable (CoreType lang)
          )
          => Subst (CoreType lang) (Σ lang)
-
-instance Subst (CoreType lang) Label
 
 mkΞ :: (CoreLang lang, Typeable (CoreKind lang), Typeable (CoreType lang),
         Alpha (CoreKind lang), Alpha (CoreType lang))
