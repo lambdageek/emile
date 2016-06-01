@@ -21,6 +21,7 @@ data CoreErr =
   | UnboundVar Var
   | UnboundTyVar TyVar
   | UnknownFieldProj [(Label, Type)] Label
+  | TyVarOccursInType TyVar Type
   deriving Show
 
 
@@ -53,3 +54,6 @@ raiseUnboundTyVar = throwError . UnboundTyVar
 
 raiseUnknownFieldProj :: MonadError CoreErr m => [(Label, Type)] -> Label -> m a
 raiseUnknownFieldProj lτs = throwError . UnknownFieldProj lτs
+
+raiseTyVarOccursInType :: MonadError CoreErr m => TyVar -> Type -> m a
+raiseTyVarOccursInType α = throwError . TyVarOccursInType α

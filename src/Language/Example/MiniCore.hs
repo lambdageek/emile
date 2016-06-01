@@ -87,10 +87,12 @@ inferCoreType (LetPackE bnd) = do
                _ -> raiseExpectedSigma e₀
   (extendTyVarCtx α κ . extendVarCtx x τ₁) $ do
     τ₂ <- inferCoreType e₁
-    when (anyOf fv (== α) τ₂) $ error "nice error message about α occurrence"
+    when (anyOf fv (== α) τ₂) $ raiseTyVarOccursInType α τ₂
     return τ₂
- 
-inferCoreType _ = error "unimplemented inferCoreType"
+inferCoreType (LetE bnd) = do
+  ((x, unembed -> e₁), e₂) <- unbind bnd
+  τ <- inferCoreType e₁
+  extendVarCtx x τ $ inferCoreType e₂
 
 ensureTypeK :: (Fresh m, MonadError CoreErr m, MonadReader CoreCtx m) => Type -> m ()
 ensureTypeK = flip ensureCoreKind TypeK
@@ -107,9 +109,8 @@ inferCoreKind (ArrT τ₁ τ₂) = do
   ensureTypeK τ₁
   ensureTypeK τ₂
   return TypeK
-inferCoreKind (ExistT bnd) = do
-  ((α, unembed -> κ), τ) <- unbind bnd
-  extendTyVarCtx α κ $ ensureTypeK τ
+inferCoreKind (ProdT lτs) = do
+  for_ lτs $ \(_lbl, τ) -> ensureTypeK τ
   return TypeK
 inferCoreKind (AppT τ₁ τ₂) = do
   κ <- inferCoreKind τ₁
@@ -119,8 +120,13 @@ inferCoreKind (AppT τ₁ τ₂) = do
       ensureEquivKind κ₁ κ₁'
       return κ₂
     TypeK -> raiseExpectedFnKind τ₁
-inferCoreKind (ProdT lτs) = do
-  for_ lτs $ \(_lbl, τ) -> ensureTypeK τ
+inferCoreKind (ForallT bnd) = do
+  ((α, unembed -> κ), τ) <- unbind bnd
+  extendTyVarCtx α κ $ ensureTypeK τ
   return TypeK
-inferCoreKind _ = error "unimplemented inferCoreKind"
+inferCoreKind (ExistT bnd) = do
+  ((α, unembed -> κ), τ) <- unbind bnd
+  extendTyVarCtx α κ $ ensureTypeK τ
+  return TypeK
+
     
