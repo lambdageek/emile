@@ -12,7 +12,7 @@ build-type:          Simple
 extra-source-files:  README.md,
                      Changelog.md
 cabal-version:       >=1.10
-tested-with:         GHC == 8.0.1
+tested-with:         GHC == 7.10.3, GHC == 8.0.1
 
 library
   exposed-modules:     Language.Example.MiniMod,
@@ -36,9 +36,8 @@ library
                      , containers >= 0.5
                      , mtl >= 2.2.0.1
                      , transformers >= 0.4.0.0
-                     , trifecta >= 1.5
                      , lens >= 4.0
-                     , unbound-generics >= 0.2
+                     , unbound-generics >= 0.3.1
   ghc-options:         -Wall -fno-warn-name-shadowing
   hs-source-dirs:      src
   default-extensions:  MultiParamTypeClasses, FlexibleContexts, FlexibleInstances, DeriveGeneric
