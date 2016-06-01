@@ -14,10 +14,15 @@ import Control.Monad.Trans.Except
 
 import Unbound.Generics.LocallyNameless
 
+import Language.Common.Label
+import Language.CoreLang
+
 import qualified Language.SIL.Syntax as SIL
 
 import Language.OIL.Syntax
 import Language.OIL.Elaborate
+
+import qualified Language.SIL.Embed as Embed
 
 import Language.Example.MiniCore
 import Language.Example.MiniCore.Syntax
@@ -30,9 +35,30 @@ type MiniM = ExceptT CoreErr (ReaderT CoreCtx FreshM)
 newtype M a = M { unM :: ReaderT (Ctx MiniSIL) (ExceptT (Err MiniSIL) MiniM) a }
   deriving (Functor, Monad, Applicative, MonadReader (Ctx MiniSIL), MonadError (Err MiniSIL), Fresh)
 
+newtype E a = E { unE :: FreshM a }
+  deriving (Functor, Monad, Applicative, Fresh)
+
 instance MonadElab M MiniSIL where
   inferTy = liftMini . inferCoreType
   inferKind = liftMini . inferCoreKind
+
+instance Embed.MonadEmbed MiniSIL E where
+  embedValΣ τ = return $ ProdT [(ValueLabel, τ)]
+  embedTyΣ τ κ = do
+    α <- fresh (s2n "α")
+    let k = κ `ArrK` TypeK
+        t = VarT α `AppT` τ
+        s = ForallT $ bind (α, embed k) $ t `ArrT` t
+    return $ ProdT [(TypeLabel, s)]
+  embedSigΣ ακs τ = do
+    let t = existss ακs τ
+        s = t `ArrT` t
+    return $ ProdT [(SignatureLabel, s)]
+  embedProduct = return . ProdT
+  embedForalls ακs = return . foralls ακs
+  embedArrow τ = return . ArrT τ
+  embedExists ακs = return . existss ακs
+
 
 type BigErr = Either CoreErr (Err MiniSIL)
 
@@ -49,10 +75,14 @@ runM (M comp) = reassoc (runFreshM (runReaderT (runExceptT $ runExceptT (runRead
     emptySmallCtx = coreNilCtx
     emptyBigCtx = nilElabCtx
 
+runE :: E a -> a
+runE = runFreshM . unE
 
 c :: MExpr MiniSIL -> M (SIL.Mod MiniSIL, SIL.TyVarBinds MiniSIL, SIL.Σ MiniSIL)
 c = elaborateME'
 
+e :: SIL.Σ MiniSIL -> E (CoreType MiniSIL)
+e = Embed.embedΣ
 
 m1 :: MExpr MiniSIL
 m1 = LitME $ bind bs ()
@@ -61,6 +91,9 @@ m1 = LitME $ bind bs ()
 
 -- Try:
 -- > runM (c m1)
+-- and:
+-- > let Right (_, _, s) = runM (c m3)
+-- > runE (e s)
 
 m2 :: MExpr MiniSIL
 m2 = LitME $ bind b1 ()
